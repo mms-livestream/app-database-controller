@@ -1,8 +1,10 @@
-'use strict'
+/*jslint node: true */
+/*jshint esversion: 6 */
+'use strict';
 
 //Dependencies
 
-let Promise = require('bluebird');
+let Promise = require('bluebird');  //jshint ignore:line
 
 let seneca = require('seneca')();
 let redis = require('redis');
@@ -29,7 +31,7 @@ class DatabaseController {
             })
             .on('error', (err) => {
                 reject(err);
-            })
+            });
         });
     }
 
@@ -39,8 +41,8 @@ class DatabaseController {
                 reject("Database client not defined");
             }
             seneca
-              .use(this.api, {'client': this.client})
-              .listen();
+                .use(this.api, {'client': this.client})
+                .listen();
             console.log("API Seneca Listening");
             resolve();
         });
