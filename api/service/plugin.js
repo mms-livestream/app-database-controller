@@ -13,7 +13,7 @@ let moment = require('moment');
 module.exports = function (options) {
 
     //Database client attached
-    let client = options.client;
+    let clientDB = options.clientDB;
 
     /**
      * Add new viewer to cache database
@@ -32,11 +32,11 @@ module.exports = function (options) {
             resolve();
         });
 
-        validation.then(client.hmsetAsync(`viewer:${msg.id_viewer}`, {
+        validation.then(clientDB.hmsetAsync(`viewer:${msg.id_viewer}`, {
             "id_uploader": msg.id_uploader,
             "date_started": moment().format() }))  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
-        .then(() => {return client.lpushAsync(`viewer:${msg.id_viewer}:servers`, ['TODO myserver1', 'myserver2']); } )   //add default list of servers for this session
-        .then(() => {return new Promise( () => respond(null, { 'code': 200 , 'status': "Viewer added succesfully." }), null );} )
+        .then(() => {return clientDB.lpushAsync(`viewer:${msg.id_viewer}:servers`, ['TODO myserver1', 'myserver2']); } )   //add default list of servers for this session
+        .then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Viewer added succesfully." }); resolve();}, null );} )
         .catch(err => {
             respond(`Error on adding viewer: ${err}`, { 'code': 500 , 'status': null });
         });
@@ -70,9 +70,9 @@ module.exports = function (options) {
             resolve();
         });
 
-        validation.then(client.hmsetAsync(`uploader:${msg.id_uploader}`, {
+        validation.then(clientDB.hmsetAsync(`uploader:${msg.id_uploader}`, {
             "title": msg.title }))  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
-        .then(() => {return client.lpushAsync(`uploader:${msg.id_uploader}:tags`, msg.tags); } )   //add tags, array form
+        .then(() => {return clientDB.lpushAsync(`uploader:${msg.id_uploader}:tags`, msg.tags); } )   //add tags, array form
         .then(() => {return new Promise( () => respond(null, { 'code': 200 , 'status': "Uploader added succesfully." }), null );} )
         .catch(err => {
             respond(`Error on adding uploader: ${err}`, { 'code': 500 , 'status': null });
