@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "bluebird": "^3.5.0",
-    "mms-core": "^0.1.10",
+    "mms-core": "^0.1.12",
     "moment": "^2.17.1",
     "redis": "^2.6.5",
     "seneca": "^3.3.0"

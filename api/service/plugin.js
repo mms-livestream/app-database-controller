@@ -32,7 +32,7 @@ module.exports = function (options) {
             resolve();
         });
 
-        validation.then(clientDB.hmsetAsync(`viewer:${msg.id_viewer}`, {
+        validation.then(() => clientDB.hmsetAsync(`viewer:${msg.id_viewer}`, {
             "id_uploader": msg.id_uploader,
             "date_started": moment().format() }))  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
         .then(() => {return clientDB.lpushAsync(`viewer:${msg.id_viewer}:servers`, ['TODO myserver1', 'myserver2']); } )   //add default list of servers for this session
@@ -70,7 +70,7 @@ module.exports = function (options) {
             resolve();
         });
 
-        validation.then(clientDB.hmsetAsync(`uploader:${msg.id_uploader}`, {
+        validation.then(() => clientDB.hmsetAsync(`uploader:${msg.id_uploader}`, {
             "title": msg.title }))  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
         .then(() => {return clientDB.lpushAsync(`uploader:${msg.id_uploader}:tags`, msg.tags); } )   //add tags, array form
         .then(() => {return new Promise( () => respond(null, { 'code': 200 , 'status': "Uploader added succesfully." }), null );} )

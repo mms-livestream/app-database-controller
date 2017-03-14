@@ -34,7 +34,7 @@ class Service extends Interaction {
 
             this.framework
                 .listen(config);
-            console.log("API Seneca Listening");
+            console.log(`API Seneca Listening on: ${config.port}`);
             resolve();
         });
     }
