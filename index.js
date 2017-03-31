@@ -4,46 +4,62 @@
 
 //Dependencies
 
-let Promise = require('bluebird');  //jshint ignore:line
+const Promise = require('bluebird');  //jshint ignore:line
 
-let redis = require('redis');
+const redis = require('redis');
     Promise.promisifyAll(redis.RedisClient.prototype);
     Promise.promisifyAll(redis.Multi.prototype);
 
-let core = require('mms-core');
-let config = require('./config.js');
-let serviceAPI = require('./api/service/plugin.js');
+const mongo = require('mongodb');
+    Promise.promisifyAll(mongo);
+
+const core = require('mms-core');
+const config = require('./config.js');
+const serviceAPI = require('./api/service/plugin.js');
 
 //Class
+let dbMongo = null;    //TODO not global but inside class
 
 class DatabaseController {
     constructor() {
         this.node = "NODE_DB_CONTROLLER";
-        this.clientDB = null;   //need to manually connect because async
+        this.clientRedis = null;   //need to manually connect because async
         this.service = null;    //need to manually attach because previous action is async
         this.serviceAPI = serviceAPI;
     }
 
     attachService() {
         return new Promise( (resolve, reject) => {
-            if (!this.clientDB) {
-                reject("Database client not connected");
+            if (!this.clientRedis || !dbMongo) {
+                reject("Redis or Mongo db clients not connected");
             }
 
-            this.service = new core.Service(this.node, this.serviceAPI, {"clientDB": this.clientDB});
+            this.service = new core.Service(this.node, this.serviceAPI, {"clientRedis": this.clientRedis, 'dbMongo': dbMongo});
             resolve();
         });
     }
 
-    connect(host, port) {
+    connectRedis(redisHost, redisPort, mongoHost, mongoPort) {
         return new Promise((resolve, reject) => {
-            this.clientDB = redis.createClient(port, host)
-            .on('connect', () => {
-                console.log('Database connected');
+            this.clientRedis = redis.createClient(redisPort, redisHost)
+                .on('connect', () => {
+                    console.log('Redis database connected');
+                    resolve();
+                })
+                .on('error', (err) => {
+                    reject(err);
+                });
+        });
+    }
+
+    connectMongo(mongoHost, mongoPort) {
+        return new Promise((resolve, reject) => {
+            mongo.MongoClient.connect(`mongodb://${config.DB_MONGODB_HOST}:${config.DB_MONGODB_PORT}/static`, (err, db) => {
+                if (err) {
+                    reject();
+                }
+                dbMongo = db;
                 resolve();
-            })
-            .on('error', (err) => {
-                reject(err);
             });
         });
     }
@@ -53,6 +69,9 @@ class DatabaseController {
 
 let controller = new DatabaseController();
 
-controller.connect(config.DB_HOST, config.DB_PORT)
-.then(() => controller.attachService())
+controller.connectRedis(config.DB_REDIS_HOST, config.DB_REDIS_PORT)
+.then(() => controller.connectMongo(config.DB_MONGO_HOST, config.DB_MONGO_PORT))
+.then(() => {
+    controller.attachService();
+})
 .then(() => controller.service.listen());
