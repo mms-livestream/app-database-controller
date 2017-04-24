@@ -205,6 +205,8 @@ module.exports = function (options) {
            resolve();
        });
 
+       console.log(msg);
+       
        validation.then(() => {return hashPassword(msg.password);})   //adds random salt
        .then((cryptoPassword) => {return dbMongo.collection('users').insertAsync({'username': msg.username, 'password': cryptoPassword.hash, 'salt': cryptoPassword.salt, 'email': msg.email});})
        .then(respond(null, { 'code': 200 , 'status': "User added succesfully."}))
@@ -236,7 +238,7 @@ module.exports = function (options) {
         .then(() => {return hashPassword(msg.password, user.salt);})
         .then((cryptoPassword) => {
             if (user.password === cryptoPassword.hash) {
-                respond(null, { 'code': 200 , 'status': "Authenticated succesfully.", 'data': {'authenticated': true} });
+                respond(null, { 'code': 200 , 'status': "Authenticated succesfully.", 'data': {'authenticated': true, 'username': user.username} });
             }
             else {
                 respond(null, { 'code': 200 , 'status': "Authentication failed.", 'data': {'authenticated': false}});
@@ -247,6 +249,6 @@ module.exports = function (options) {
        });
     });
 
-    
+
 
 };
