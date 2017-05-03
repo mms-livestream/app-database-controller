@@ -206,7 +206,7 @@ module.exports = function (options) {
        });
 
        console.log(msg);
-       
+
        validation.then(() => {return hashPassword(msg.password);})   //adds random salt
        .then((cryptoPassword) => {return dbMongo.collection('users').insertAsync({'username': msg.username, 'password': cryptoPassword.hash, 'salt': cryptoPassword.salt, 'email': msg.email});})
        .then(respond(null, { 'code': 200 , 'status': "User added succesfully."}))
@@ -249,6 +249,174 @@ module.exports = function (options) {
        });
     });
 
+    /**
+     * Compute number of viewers for each video
+     * @function
+     * @param {JSON object} msg - no information
+     * @param {function} respond - response after operation : respond(err, JSON object response);
+     */
+    this.add('role:viewers,cmd:stats', (msg, respond) => {
+        let validation = new Promise((resolve, reject) => {
+            resolve();
+        });
+		let multi=clientRedis.multi();
+		let counters={};
+		validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*','count','100000'))// 100000 should always be bigger if there are more viewers
+	    .then((viewers) => {
+			//console.log(viewers);
+			for (let v in viewers[1]){
+		 	    multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
+	 	  	    	if (counters["uploader:"+vid] === undefined){
+	  		      		counters["uploader:"+vid] = 1;
+					}else{
+	  		      		counters["uploader:"+vid] +=1;
+	   		    	}
+				});
+   			}
+		})
+		.then(() => {
+			multi.execAsync((err,res) => {
+				console.log(counters);
+				return new Promise( (resolve, reject) => {respond(null, { 'counters': counters,'code': 200 , 'status': "Number of viewers counted succesfully." }); resolve();}, null );
+			});
+		})
+        //.then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Number of viewers counted succesfully." }); resolve();}, null );} )
+        .catch(err => {
+            respond(`Error on counting viewers: ${err}`, { 'code': 500 , 'status': null });
+        });
+    });
 
+	/**
+     * Compute servers load
+     * @function
+     * @param {JSON object} msg - no information
+     * @param {function} respond - response after operation : respond(err, JSON object response);
+     */
+    this.add('role:servers,cmd:stats', (msg, respond) => {
+        let validation = new Promise((resolve, reject) => {
+            resolve();
+        });
+		let multi = clientRedis.multi();
+		let counters2={};
+		validation.then(() => clientRedis.scanAsync('0','MATCH','servers:viewer:*','count','100000'))
+	    .then((servers) => {
+			for (let v in servers[1]){
+                multi.lrange(servers[1][v], '0', '-1', (err, srvlist) => {
+	       	    	for (let s in srvlist){
+		       			if (counters2[srvlist[s]] === undefined){
+		            		counters2[srvlist[s]] = 1;
+		       	   			//console.log(counters2);
+		        		}else{
+		            		counters2[srvlist[s]] +=1;
+		            		//console.log(counters2);
+		        		}
+		    		}
+	    		});
+			}
+		})
+		.then(() => {
+			multi.execAsync((err,res) => {
+				console.log(counters2);
+				return new Promise( (resolve, reject) => {respond(null, { 'counters':counters2,'code': 200 , 'status': "Server load counted succesfully." }); resolve();}, null );
+			});
+		})
+
+        //.then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Servers load counted succesfully." }); resolve();}, null );} )
+        .catch(err => {
+            respond(`Error on counting servers load: ${err}`, { 'code': 500 , 'status': null });
+        });
+    });
+
+	/**
+     * Update the servers for each video
+     * @function
+     * @param {JSON object} msg - information about new update about replication decision : { "distribution": object(JSON)}
+     * @param {function} respond - response after operation : respond(err, JSON object response);
+     */
+     this.add('role:uploader_servers,cmd:update', (msg, respond) => {
+         let validation = new Promise((resolve, reject) => {
+            //TODO : test if msg.distribution : object
+            resolve();
+        });
+		let multi = clientRedis.multi();
+		console.log(msg.distribution);
+    validation.then(() => {for (let i in msg.distribution){
+      multi.del("servers:"+i);
+	    for (let j in msg.distribution[i]){
+        multi.lpush("servers:"+i, msg.distribution[i][j]);
+	    }
+    } })
+		.then(() => {
+                multi.execAsync((err,res) => {
+			        return new Promise( (resolve, reject) => {respond(null, {'code': 200 , 'status': "Uploader servers updated succesfully." }); resolve();}, null );
+            });
+		})
+	    .catch(err => {
+            respond(`Error on updating uploader servers: ${err}`, { 'code': 500 , 'status': null });
+        });
+     });
+     /**
+        * Update the servers for each video
+        * @function
+        * @param {JSON object} msg - None
+        * @param {function} respond - response after operation : respond(err, JSON object response);
+        */
+        this.add('role:uploader_servers,cmd:get', (msg, respond) => {
+            let validation = new Promise((resolve, reject) => {
+               resolve();
+           });
+        let multi = clientRedis.multi();
+        validation.then(() => clientRedis.scanAsync('0','MATCH','servers:uploader:*','count','100000'))
+        .then((srv_ups) => {for (let i in srv_ups){
+          console.log(srv_ups[i]);
+   	      //for (let j in msg.distribution[i]){
+            //multi.lpush("servers:"+i, msg.distribution[i][j]);
+   	      }
+        })
+   		.then(() => {multi.execAsync((err,res) => {
+   			return new Promise( (resolve, reject) => {respond(null, {'code': 200 , 'status': "Uploader servers updated succesfully." }); resolve();}, null );
+            });
+   		})
+   	    .catch(err => {
+               respond(`Error on updating uploader servers: ${err}`, { 'code': 500 , 'status': null });
+           });
+        });
+	/**
+     * Compute number of viewers for each video
+     * @function
+     * @param {JSON object} msg - no information : {"videos": array string}
+     * @param {function} respond - response after operation : respond(err, JSON object response);
+     */
+    this.add('role:viewers,cmd:list', (msg, respond) => {
+        let validation = new Promise((resolve, reject) => {
+            resolve();
+        });
+		let multi=clientRedis.multi();
+		let lists={};
+		for (let i in msg.videos) {
+			lists[msg.videos[i]] = [];
+		}
+		validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*','count','100000'))// 100000 should always be bigger if there are more viewers
+	    .then((viewers) => {
+			for (let v in viewers[1]) {
+		 	    multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
+	 	  	    	for (let i in msg.videos) {
+						if ("uploader:".concat(vid) == msg.videos[i]) {
+							lists[msg.videos[i]] = lists[msg.videos[i]].concat(viewers[1][v]);
+						}
+					}
+				});
+   			}
+		})
+		.then(() => {
+			multi.execAsync((err,res) => {
+				console.log(lists);
+				return new Promise( (resolve, reject) => {respond(null, { 'lists': lists,'code': 200 , 'status': "Number of viewers counted succesfully." }); resolve();}, null );
+			});
+		})
+        .catch(err => {
+            respond(`Error on counting viewers: ${err}`, { 'code': 500 , 'status': null });
+        });
+    });
 
 };
