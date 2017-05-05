@@ -355,8 +355,8 @@ module.exports = function (options) {
             respond(`Error on updating uploader servers: ${err}`, { 'code': 500 , 'status': null });
         });
      });
-     /**
-        * Update the servers for each video
+/**
+        * Get the servers for each video
         * @function
         * @param {JSON object} msg - None
         * @param {function} respond - response after operation : respond(err, JSON object response);
@@ -365,17 +365,18 @@ module.exports = function (options) {
             let validation = new Promise((resolve, reject) => {
                resolve();
            });
+		let lists = {}
         let multi = clientRedis.multi();
         validation.then(() => clientRedis.scanAsync('0','MATCH','servers:uploader:*','count','100000'))
-        .then((srv_ups) => {for (let i in srv_ups){
-          console.log(srv_ups[i]);
-   	      //for (let j in msg.distribution[i]){
-            //multi.lpush("servers:"+i, msg.distribution[i][j]);
+        .then((srv_ups) => {for (let i in srv_ups[1]){
+			multi.lrange(srv_ups[1][i], '0', '-1', (err, res) => {
+				lists[srv_ups[1][i].substr(8)]=res;
+			});
    	      }
         })
    		.then(() => {multi.execAsync((err,res) => {
-   			return new Promise( (resolve, reject) => {respond(null, {'code': 200 , 'status': "Uploader servers updated succesfully." }); resolve();}, null );
-            });
+   			return new Promise( (resolve, reject) => {respond(null, {'lists':lists, 'code': 200 , 'status': "Uploader servers updated succesfully." }); resolve();}, null );
+   			})
    		})
    	    .catch(err => {
                respond(`Error on updating uploader servers: ${err}`, { 'code': 500 , 'status': null });
