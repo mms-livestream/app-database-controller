@@ -430,10 +430,12 @@ module.exports = function (options) {
         let validation = new Promise((resolve, reject) => {
             resolve();
         });
+
 		let upsv=[];
 		validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:?','count','100000')) // ? to be modified if there are >= 10 ups
 	    .then((uploaders) => {
 			upsv = uploaders[1];
+			return(upsv);
 		})
 		.then((upsv) => {console.log(upsv);
 				return new Promise( (resolve, reject) => {respond(null, { 'uploaders':upsv,'code': 200 , 'status': "uploaders listed succesfully." }); resolve();}, null );
