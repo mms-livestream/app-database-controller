@@ -431,22 +431,22 @@ module.exports = function (options) {
         let validation = new Promise((resolve, reject) => {
             resolve();
         });
-		//let multi = clientRedis.multi();
+
 		let upsv=[];
 		validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:?','count','100000')) // ? to be modified if there are >= 10 ups
 	    .then((uploaders) => {
 			upsv = uploaders[1];
 			return(upsv);
 		})
-		.then((upsv) => {
+
+		.then((upsv) => {console.log(upsv);
 				return new Promise( (resolve, reject) => {respond(null, { 'uploaders':[upsv],'code': 200 , 'status': "uploaders listed succesfully." }); resolve();}, null );
 			})
 
-        //.then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Servers load counted succesfully." }); resolve();}, null );} )
         .catch(err => {
             respond(`Error on listing uploaders : ${err}`, { 'code': 500 , 'status': null });
         });
-    });
+	});
 
 
 };
