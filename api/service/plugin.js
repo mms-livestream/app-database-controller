@@ -438,7 +438,7 @@ module.exports = function (options) {
 			return(upsv);
 		})
 		.then((upsv) => {console.log(upsv);
-				return new Promise( (resolve, reject) => {respond(null, { 'uploaders':upsv,'code': 200 , 'status': "uploaders listed succesfully." }); resolve();}, null );
+				return new Promise( (resolve, reject) => {respond(null, { 'uploaders':[upsv],'code': 200 , 'status': "uploaders listed succesfully." }); resolve();}, null );
 			})
 
         .catch(err => {
