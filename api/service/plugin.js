@@ -265,13 +265,15 @@ module.exports = function (options) {
 	    .then((viewers) => {
 			//console.log(viewers);
 			for (let v in viewers[1]){
-		 	    multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
-	 	  	    	if (counters["uploader:"+vid] === undefined){
-	  		      		counters["uploader:"+vid] = 1;
-					}else{
-	  		      		counters["uploader:"+vid] +=1;
-	   		    	}
-				});
+				if (viewers[1][v].indexOf(":servers") == -1){
+			 	    multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
+		 	  	    	if (counters["uploader:"+vid] === undefined){
+		  		      		counters["uploader:"+vid] = 1;
+						}else{
+		  		      		counters["uploader:"+vid] +=1;
+		   		    	}
+					});
+				}
    			}
 		})
 		.then(() => {
@@ -298,7 +300,7 @@ module.exports = function (options) {
         });
 		let multi = clientRedis.multi();
 		let counters2={};
-		validation.then(() => clientRedis.scanAsync('0','MATCH','servers:viewer:*','count','100000'))
+		validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*:servers','count','100000'))
 	    .then((servers) => {
 			for (let v in servers[1]){
                 multi.lrange(servers[1][v], '0', '-1', (err, srvlist) => {
@@ -340,12 +342,12 @@ module.exports = function (options) {
         });
 		let multi = clientRedis.multi();
 		console.log(msg.distribution);
-    validation.then(() => {for (let i in msg.distribution){
-      multi.del("servers:"+i);
-	    for (let j in msg.distribution[i]){
-        multi.lpush("servers:"+i, msg.distribution[i][j]);
-	    }
-    } })
+		validation.then(() => {for (let i in msg.distribution){
+			multi.del(i+":servers");
+			for (let j in msg.distribution[i]){
+		    	multi.lpush(i+":servers", msg.distribution[i][j]);
+			}
+    	} })
 		.then(() => {
                 multi.execAsync((err,res) => {
 			        return new Promise( (resolve, reject) => {respond(null, {'code': 200 , 'status': "Uploader servers updated succesfully." }); resolve();}, null );
@@ -355,7 +357,37 @@ module.exports = function (options) {
             respond(`Error on updating uploader servers: ${err}`, { 'code': 500 , 'status': null });
         });
      });
-/**
+
+	/**
+     * Update the servers for each viewer
+     * @function
+     * @param {JSON object} msg - information about new update about replication decision : { "distribution": object(JSON)}
+     * @param {function} respond - response after operation : respond(err, JSON object response);
+     */
+     this.add('role:viewer_servers,cmd:update', (msg, respond) => {
+         let validation = new Promise((resolve, reject) => {
+            //TODO : test if msg.distribution : object
+            resolve();
+        });
+		let multi = clientRedis.multi();
+		console.log(msg.distribution);
+		validation.then(() => {for (let i in msg.distribution){
+			multi.del(i+":servers");
+			for (let j in msg.distribution[i]){
+		    	multi.lpush(i+":servers", msg.distribution[i][j]);
+			}
+    	} })
+		.then(() => {
+                multi.execAsync((err,res) => {
+			        return new Promise( (resolve, reject) => {respond(null, {'code': 200 , 'status': "viewer servers updated succesfully." }); resolve();}, null );
+            });
+		})
+	    .catch(err => {
+            respond(`Error on updating viewer servers: ${err}`, { 'code': 500 , 'status': null });
+        });
+     });
+
+	/**
         * Get the servers for each video
         * @function
         * @param {JSON object} msg - None
@@ -367,10 +399,11 @@ module.exports = function (options) {
            });
 		let lists = {}
         let multi = clientRedis.multi();
-        validation.then(() => clientRedis.scanAsync('0','MATCH','servers:uploader:*','count','100000'))
+        validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:*:servers','count','100000'))
         .then((srv_ups) => {for (let i in srv_ups[1]){
 			multi.lrange(srv_ups[1][i], '0', '-1', (err, res) => {
-				lists[srv_ups[1][i].substr(8)]=res;
+				let slices = srv_ups[1][i].split(":");
+				lists[slices[0]+slices[1]]=res;
 			});
    	      }
         })
@@ -383,9 +416,9 @@ module.exports = function (options) {
            });
         });
 	/**
-     * Compute number of viewers for each video
+     * List of viewers for each video
      * @function
-     * @param {JSON object} msg - no information : {"videos": array string}
+     * @param {JSON object} msg - no information
      * @param {function} respond - response after operation : respond(err, JSON object response);
      */
     this.add('role:viewers,cmd:list', (msg, respond) => {
@@ -394,29 +427,29 @@ module.exports = function (options) {
         });
 		let multi=clientRedis.multi();
 		let lists={};
-		for (let i in msg.videos) {
-			lists[msg.videos[i]] = [];
-		}
+
 		validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*','count','100000'))// 100000 should always be bigger if there are more viewers
 	    .then((viewers) => {
 			for (let v in viewers[1]) {
-		 	    multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
-	 	  	    	for (let i in msg.videos) {
-						if ("uploader:".concat(vid) == msg.videos[i]) {
-							lists[msg.videos[i]] = lists[msg.videos[i]].concat(viewers[1][v]);
-						}
-					}
-				});
+				if (viewers[1][v].indexOf(":servers") == -1){
+		 	    	multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
+						if (lists["uploader:".concat(vid)] == undefined) {
+							lists["uploader:".concat(vid)] = [];
+							lists["uploader:".concat(vid)] = lists["uploader:".concat(vid)].concat(viewers[1][v]);
+						}else
+							lists["uploader:".concat(vid)] = lists["uploader:".concat(vid)].concat(viewers[1][v]);
+					})
+				}
    			}
 		})
 		.then(() => {
 			multi.execAsync((err,res) => {
 				console.log(lists);
-				return new Promise( (resolve, reject) => {respond(null, { 'lists': lists,'code': 200 , 'status': "Number of viewers counted succesfully." }); resolve();}, null );
+				return new Promise( (resolve, reject) => {respond(null, { 'lists': lists,'code': 200 , 'status': "List of viewers done succesfully." }); resolve();}, null );
 			});
 		})
         .catch(err => {
-            respond(`Error on counting viewers: ${err}`, { 'code': 500 , 'status': null });
+            respond(`Error on listing viewers: ${err}`, { 'code': 500 , 'status': null });
         });
     });
 
@@ -432,9 +465,12 @@ module.exports = function (options) {
         });
 
 		let upsv=[];
-		validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:?','count','100000')) // ? to be modified if there are >= 10 ups
+		validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:*','count','100000')) // ? to be modified if there are >= 10 ups
 	    .then((uploaders) => {
-			upsv = uploaders[1];
+			for (let i in uploaders[1].length){
+				if (uploaders[1][i].indexOf(":servers") == -1 && uploaders[1][i].indexOf(":tags") == -1)
+					upsv = upsv.concat(uploaders[1][i]);
+			}
 			return(upsv);
 		})
 		.then((upsv) => {console.log(upsv);
