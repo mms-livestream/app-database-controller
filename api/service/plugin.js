@@ -403,7 +403,7 @@ module.exports = function (options) {
         .then((srv_ups) => {for (let i in srv_ups[1]){
 			multi.lrange(srv_ups[1][i], '0', '-1', (err, res) => {
 				let slices = srv_ups[1][i].split(":");
-				lists[slices[0]+slices[1]]=res;
+				lists[slices[0]+":"+slices[1]]=res;
 			});
    	      }
         })
