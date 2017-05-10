@@ -469,6 +469,7 @@ module.exports = function (options) {
 		validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:*','count','100000')) // ? to be modified if there are >= 10 ups
 	    .then((uploaders) => {
 			for (let i in uploaders[1].length){
+				console.log(">>>> "+uploaders[1][i].indexOf(":tags"));
 				if (uploaders[1][i].indexOf(":servers") == -1 && uploaders[1][i].indexOf(":tags") == -1)
 					upsv = upsv.concat(uploaders[1][i]);
 			}
