@@ -387,7 +387,7 @@ module.exports = function (options) {
         });
      });
 
-	/**
+/**
         * Get the servers for each video
         * @function
         * @param {JSON object} msg - None
@@ -459,7 +459,6 @@ module.exports = function (options) {
      * @param {JSON object} msg - no information
      * @param {function} respond - response after operation : respond(err, JSON object response);
      */
-
     this.add('role:uploaders,cmd:list', (msg, respond) => {
         let validation = new Promise((resolve, reject) => {
             resolve();
@@ -474,7 +473,6 @@ module.exports = function (options) {
 			}
 			return(upsv);
 		})
-
 		.then((upsv) => {console.log(upsv);
 				return new Promise( (resolve, reject) => {respond(null, { 'uploaders':[upsv],'code': 200 , 'status': "uploaders listed succesfully." }); resolve();}, null );
 			})
