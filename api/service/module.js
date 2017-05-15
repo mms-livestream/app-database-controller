@@ -112,88 +112,6 @@ module.exports = function (options) {
     });
 
     /**
-     * Compute number of viewers for each video
-     * @function
-     * @param {JSON object} msg - information about new viewer : { "id_viewer": int, "id_uploader": int }
-     * @param {function} respond - response after operation : respond(err, JSON object response);
-     */
-    // this.add('role:viewers,cmd:stats', (msg, respond) => {
-    //     let validation = new Promise((resolve, reject) => {
-    //         resolve();
-    //     });
-    //
-    // 	let counters={};
-    // 	validation.then(() => clientDB.scan('0','MATCH','viewers:*','count','10', (err, viewers) => {
-    //         let multi = clientDB.multi();
-    //
-    // 	    for (var v in viewers[1]) {
-    //             multi.hget(viewers[1][v], 'id_uploader');
-    //             /*
-    // 	        multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
-    // 	       	    if (counters["uploader:"+vid] === undefined) {
-    // 		            counters["uploader:"+vid] = 1;
-    // 		            console.log(counters);
-    // 		        } else {
-    // 		            counters["uploader:"+vid] +=1;
-    // 		            console.log(counters);
-    // 		        }
-    // 		    });*//*
-    //             if (v == viewers[1].length){
-    //                 return(counters);
-    //             }*/
-    //         }
-    //         multi.exec((err, res) => {
-    //             console.log(res);
-    //         });
-    //
-    //         //viewers[1].
-    // 	}))
-    //     //.then(() => console.log(counters))
-    //     .then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Number of viewers counted succesfully." }); resolve();}, null );} )
-    //     .catch(err => {
-    //         respond(`Error on counting viewers: ${err}`, { 'code': 500 , 'status': null });
-    //     });
-    // });
-
-     /**
-     * Compute servers load
-     * @function
-     * @param {JSON object} msg - information about new viewer : { "id_viewer": int, "id_uploader": int }
-     * @param {function} respond - response after operation : respond(err, JSON object response);
-     */
-
-    /*
-    this.add('role:servers,cmd:stats', (msg, respond) => {
-        let validation = new Promise((resolve, reject) => {
-            resolve();
-        });
-
-	    let counters2={};
-	    validation.then(() => clientDB.scanAsync('0','MATCH','servers:viewer:*','count','20', (err, servers) => {
-	        for (var v in servers[1]){
-                clientDB.lrangeAsync(servers[1][v], '0', '-1', (err, srvlist) => {
-	       	        for (var s in srvlist){
-		                if (counters2[srvlist[s]] === undefined){
-		                    counters2[srvlist[s]] = 1;
-		       	            console.log(counters2);
-		                }else{
-		                    counters2[srvlist[s]] +=1;
-		                    console.log(counters2);
-		                }
-		            }
-	            })
-            }//console.log(counters2);
-        }))
-
-
-        .then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Servers load counted succesfully." }); resolve();}, null );} )
-        .catch(err => {
-            respond(`Error on counting servers load: ${err}`, { 'code': 500 , 'status': null });
-        });
-    });*/
-
-
-    /**
      * Add a new user
      * @function
      * @param {JSON object} msg - information : { "username": string, "password": hash string }
@@ -238,7 +156,7 @@ module.exports = function (options) {
         .then(() => {return hashPassword(msg.password, user.salt);})
         .then((cryptoPassword) => {
             if (user.password === cryptoPassword.hash) {
-                respond(null, { 'code': 200 , 'status': "Authenticated succesfully.", 'data': {'authenticated': true, 'username': user.username} });
+              respond(null, { 'code': 200 , 'status': "Authenticated succesfully.", 'data': {'authenticated': true,  'id': user._id.toString(), 'username': user.username} });
             }
             else {
                 respond(null, { 'code': 200 , 'status': "Authentication failed.", 'data': {'authenticated': false}});
@@ -295,38 +213,37 @@ module.exports = function (options) {
      * @param {function} respond - response after operation : respond(err, JSON object response);
      */
     this.add('role:servers,cmd:stats', (msg, respond) => {
-        let validation = new Promise((resolve, reject) => {
-            resolve();
-        });
-		let multi = clientRedis.multi();
-		let counters2={};
-		validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*:servers','count','100000'))
-	    .then((servers) => {
-			for (let v in servers[1]){
-                multi.lrange(servers[1][v], '0', '-1', (err, srvlist) => {
-	       	    	for (let s in srvlist){
-		       			if (counters2[srvlist[s]] === undefined){
-		            		counters2[srvlist[s]] = 1;
-		       	   			//console.log(counters2);
-		        		}else{
-		            		counters2[srvlist[s]] +=1;
-		            		//console.log(counters2);
-		        		}
-		    		}
-	    		});
-			}
-		})
-		.then(() => {
-			multi.execAsync((err,res) => {
-				console.log(counters2);
-				return new Promise( (resolve, reject) => {respond(null, { 'counters':counters2,'code': 200 , 'status': "Server load counted succesfully." }); resolve();}, null );
-			});
-		})
-
-        //.then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Servers load counted succesfully." }); resolve();}, null );} )
-        .catch(err => {
-            respond(`Error on counting servers load: ${err}`, { 'code': 500 , 'status': null });
-        });
+      let validation = new Promise((resolve, reject) => {
+          resolve();
+      });
+  		let multi = clientRedis.multi();
+  		let counters2={};
+  		validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*:servers','count','100000'))
+  	    .then((servers) => {
+  			for (let v in servers[1]){
+                  multi.lrange(servers[1][v], '0', '-1', (err, srvlist) => {
+  	       	    	for (let s in srvlist){
+  		       			if (counters2[srvlist[s]] === undefined){
+  		            		counters2[srvlist[s]] = 1;
+  		       	   			//console.log(counters2);
+  		        		}else{
+  		            		counters2[srvlist[s]] +=1;
+  		            		//console.log(counters2);
+  		        		}
+  		    		}
+  	    		});
+  			}
+  		})
+  		.then(() => {
+  			multi.execAsync((err,res) => {
+  				console.log(counters2);
+  				return new Promise( (resolve, reject) => {respond(null, { 'counters':counters2,'code': 200 , 'status': "Server load counted succesfully." }); resolve();}, null );
+  			});
+  		})
+      //.then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Servers load counted succesfully." }); resolve();}, null );} )
+      .catch(err => {
+          respond(`Error on counting servers load: ${err}`, { 'code': 500 , 'status': null });
+      });
     });
 
 	/**
@@ -372,7 +289,7 @@ module.exports = function (options) {
 		let multi = clientRedis.multi();
 		console.log(msg.distribution);
 		validation.then(() => {for (let i in msg.distribution){
-			
+
 			multi.del(i+":servers");
 			for (let j in msg.distribution[i]){
 		    		multi.lpush(i+":servers", msg.distribution[i][j]);
@@ -388,7 +305,7 @@ module.exports = function (options) {
         });
      });
 
-	/**
+	    /**
         * Get the servers for each video
         * @function
         * @param {JSON object} msg - None
@@ -398,7 +315,7 @@ module.exports = function (options) {
             let validation = new Promise((resolve, reject) => {
                resolve();
            });
-		let lists = {}
+		         let lists = {}
         let multi = clientRedis.multi();
         validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:*:servers','count','100000'))
         .then((srv_ups) => {for (let i in srv_ups[1]){
@@ -460,7 +377,6 @@ module.exports = function (options) {
      * @param {JSON object} msg - no information
      * @param {function} respond - response after operation : respond(err, JSON object response);
      */
-
     this.add('role:uploaders,cmd:list', (msg, respond) => {
         let validation = new Promise((resolve, reject) => {
             resolve();
@@ -492,7 +408,6 @@ module.exports = function (options) {
      * @param {JSON object} msg - no information
      * @param {function} respond - response after operation : respond(err, JSON object response);
      */
-
     this.add('role:servers,cmd:bitrates', (msg, respond) => {
         let validation = new Promise((resolve, reject) => {
             resolve();

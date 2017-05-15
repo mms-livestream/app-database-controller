@@ -28,7 +28,7 @@ class DatabaseController {
         this.service = null;    //need to manually attach because previous action is async
 	//this.server = new core.Server(this.node, serverAPI, {"service": this.service})
         this.serviceAPI = serviceAPI;
-	this.serverAPI = serverAPI;
+	      this.serverAPI = serverAPI;
     }
 
     attachService() {
