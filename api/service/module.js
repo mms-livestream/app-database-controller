@@ -54,9 +54,10 @@ module.exports = function (options) {
             resolve();
         });
 
-        validation.then(() => clientRedis.hmsetAsync(`viewer:${msg.id_viewer}`, {
+        validation.then(() =>{ clientRedis.hmsetAsync(`viewer:${msg.id_viewer}`, {
             "id_uploader": msg.id_uploader,
-            "date_started": moment().format() }))  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
+            "date_started": moment().format() });  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
+			clientRedis.set('modifViewer',"yes"); })
         .then(() => {return clientRedis.lpushAsync(`viewer:${msg.id_viewer}:servers`, ['TODO myserver1', 'myserver2']); } )   //add default list of servers for this session
         .then(() => {return new Promise( (resolve, reject) => {respond(null, { 'code': 200 , 'status': "Viewer added succesfully." }); resolve();}, null );} )
         .catch(err => {
@@ -414,7 +415,7 @@ module.exports = function (options) {
         });
 
 		let bitrate={};
-		validation.then(() => {return clientRedis.hgetallAsync('distrib');}) // ? to be modified if there are >= 10 ups
+		validation.then(() => {return clientRedis.hgetallAsync('distrib');})
 	    .then((result) => {
 			console.log(clientRedis.hgetallAsync);
 			console.log(">>>>>>>>>BIRAAAAATTEESSS>>>"+result);
@@ -433,6 +434,31 @@ module.exports = function (options) {
         });
 	});
 
+	/**
+     * Verify if a viewer is added or removed
+     * @function
+     * @param {JSON object} msg - no information
+     * @param {function} respond - response after operation : respond(err, string response);
+     */
+    this.add('role:modif,cmd:verif', function (msg, respond) {
+        let validation = new Promise((resolve, reject) => {
+            resolve();
+        });
+
+		validation.then(() => { clientRedis.get('modifViewer', (err, res) => {
+			if (err){
+				throw err;
+			}
+			console.log(res);
+			if (res == "yes")
+				clientRedis.set('modifViewer',"no");
+			return new Promise( (resolve, reject) => {respond(null, { 'modification':res,'code': 200 , 'status': "Bitrate object created." }); resolve();}, null );
+		})	})
+
+        .catch(err => {
+            respond(`Error on creating bitrate object : ${err}`, { 'code': 500 , 'status': null });
+        });
+	});
 
 
 
