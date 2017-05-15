@@ -290,9 +290,9 @@ module.exports = function (options) {
 		console.log(msg.distribution);
 		validation.then(() => {for (let i in msg.distribution){
 
-			multi.del(i+":servers");
-			for (let j in msg.distribution[i]){
-		    		multi.lpush(i+":servers", msg.distribution[i][j]);
+			multi.del("viewer:"+i+":servers");
+			for (let j in msg.distribution[i]["servers"]){
+		    		multi.lpush("viewer:"+i+":servers", msg.distribution[i]["servers"][j]);
 			}
     	} })
 		.then(() => {
