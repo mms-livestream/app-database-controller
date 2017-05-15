@@ -454,7 +454,7 @@ module.exports = function (options) {
         });
     });
 
-/**
+	/**
      * get the list of the uploaders
      * @function
      * @param {JSON object} msg - no information
@@ -485,6 +485,96 @@ module.exports = function (options) {
             respond(`Error on listing uploaders : ${err}`, { 'code': 500 , 'status': null });
         });
 	});
+
+	/**
+     * get an object of the distribution servers with their bitrates
+     * @function
+     * @param {JSON object} msg - no information
+     * @param {function} respond - response after operation : respond(err, JSON object response);
+     */
+
+    this.add('role:servers,cmd:bitrates', (msg, respond) => {
+        let validation = new Promise((resolve, reject) => {
+            resolve();
+        });
+
+		let bitrate={};
+		validation.then(() => {return clientRedis.hgetallAsync('distrib');}) // ? to be modified if there are >= 10 ups
+	    .then((result) => {
+			console.log(clientRedis.hgetallAsync);
+			console.log(">>>>>>>>>BIRAAAAATTEESSS>>>"+result);
+			for (let i=1; i<result.length; i=i+2){
+				bitrate[result[i-1]] = result[i];
+			}
+			return(bitrate);
+		})
+
+		.then((bitrate) => {console.log("bitrate: "+bitrate);
+				return new Promise( (resolve, reject) => {respond(null, { 'bitrate':bitrate,'code': 200 , 'status': "Bitrate object created." }); resolve();}, null );
+			})
+
+        .catch(err => {
+            respond(`Error on creating bitrate object : ${err}`, { 'code': 500 , 'status': null });
+        });
+	});
+
+
+
+
+
+// Noellie
+let Dis = {} ;
+var ObjectId = require('mongodb').ObjectId;
+  this.add('role:viewers,cmd:getServers', (msg, respond) => {
+    let validation = new Promise((resolve, reject) => {
+
+      resolve()
+    });
+
+    let multi=clientRedis.multi();
+
+    let promIDs = validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*','count','100000'))// 100000 should always be bigger if there are more viewers
+    .then((viewers) => {
+      let allViewersID = [];
+      let slices = [];
+      for (let v of viewers[1]) {
+        slices = v.split(":");
+        if(slices[2] === "servers") {
+          var Oid = new ObjectId(slices[1]);
+          allViewersID.push(Oid);
+        }
+      };
+      return allViewersID;
+    });
+
+    let promUsernames = promIDs.then((allViewersID) => {return dbMongo.collection('users').find({"_id": { $in: allViewersID } }).toArrayAsync().map( (res) => {
+        //console.log(res.username);
+        return {"_id":res._id, "username":res.username};
+      });
+    });
+
+    let promListServers = promIDs.then( (allViewersID) => {
+      allViewersID.forEach( function(id) {
+        multi.lrange(`viewer:${id}:servers`, '0', '-1');
+      });
+    })
+    .then(() => multi.execAsync());
+
+    let promBitrate = validation.then(() => clientRedis.hgetall("distrib", (err, res) => {
+      Dis =res;
+    }));
+
+    Promise.join(promUsernames, promListServers, promBitrate, (usernames, servers, bitrate) => {
+     // console.log(Dis);
+
+      let serversByUsernames = [];
+      usernames.forEach((username, i) => {
+        serversByUsernames.push({"id":username._id.toString(), "username":username.username, "servers":servers[i]})
+      })
+      //console.log(serversByUsernames);
+      respond(null, { 'code': 200 , 'status': "list of server." , 'data': {'listserversByViewers': serversByUsernames, "distrib":Dis}});
+    });
+  });
 
 
 };

@@ -15,7 +15,8 @@ const mongo = require('mongodb');
 
 const core = require('mms-core');
 const config = require('./config.js');
-const serviceAPI = require('./api/service/plugin.js');
+const serviceAPI = require('./api/service/module.js');
+const serverAPI = require('./api/server/module.js');
 
 //Class
 let dbMongo = null;    //TODO not global but inside class
@@ -25,7 +26,9 @@ class DatabaseController {
         this.node = "NODE_DB_CONTROLLER";
         this.clientRedis = null;   //need to manually connect because async
         this.service = null;    //need to manually attach because previous action is async
+	//this.server = new core.Server(this.node, serverAPI, {"service": this.service})
         this.serviceAPI = serviceAPI;
+	this.serverAPI = serverAPI;
     }
 
     attachService() {
@@ -35,6 +38,19 @@ class DatabaseController {
             }
 
             this.service = new core.Service(this.node, this.serviceAPI, {"clientRedis": this.clientRedis, 'dbMongo': dbMongo});
+	    console.log("Service attached");
+            resolve();
+        });
+    }
+
+   attachServer() {
+        return new Promise( (resolve, reject) => {
+            if (!this.clientRedis || !dbMongo) {
+                reject("Redis or Mongo db clients not connected");
+            }
+
+            this.server = new core.Server(this.node, this.serverAPI, {"clientRedis": this.clientRedis, 'dbMongo': dbMongo});
+	    console.log("Server attached");
             resolve();
         });
     }
@@ -73,5 +89,7 @@ controller.connectRedis(config.DB_REDIS_HOST, config.DB_REDIS_PORT)
 .then(() => controller.connectMongo(config.DB_MONGO_HOST, config.DB_MONGO_PORT))
 .then(() => {
     controller.attachService();
+    controller.attachServer();
 })
-.then(() => controller.service.listen());
+.then(() => controller.service.listen())
+.then(() => controller.server.listen());
