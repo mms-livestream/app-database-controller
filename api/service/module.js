@@ -186,7 +186,6 @@ module.exports = function (options) {
 		let counters={};
 		validation.then(() => clientRedis.scanAsync('0','MATCH','viewer:*','count','100000'))// 100000 should always be bigger if there are more viewers
 	    .then((viewers) => {
-			//console.log(viewers);
 			for (let v in viewers[1]){
 				if (viewers[1][v].indexOf(":servers") == -1){
 			 	    multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
@@ -201,7 +200,6 @@ module.exports = function (options) {
 		})
 		.then(() => {
 			multi.execAsync((err,res) => {
-				console.log(counters);
 				return new Promise( (resolve, reject) => {respond(null, { 'counters': counters,'code': 200 , 'status': "Number of viewers counted succesfully." }); resolve();}, null );
 			});
 		})
@@ -230,10 +228,8 @@ module.exports = function (options) {
   	       	    	for (let s in srvlist){
   		       			if (counters2[srvlist[s]] === undefined){
   		            		counters2[srvlist[s]] = 1;
-  		       	   			//console.log(counters2);
   		        		}else{
   		            		counters2[srvlist[s]] +=1;
-  		            		//console.log(counters2);
   		        		}
   		    		}
   	    		});
@@ -241,7 +237,6 @@ module.exports = function (options) {
   		})
   		.then(() => {
   			multi.execAsync((err,res) => {
-  				console.log(counters2);
   				return new Promise( (resolve, reject) => {respond(null, { 'counters':counters2,'code': 200 , 'status': "Server load counted succesfully." }); resolve();}, null );
   			});
   		})
@@ -263,7 +258,6 @@ module.exports = function (options) {
             resolve();
         });
 		let multi = clientRedis.multi();
-		console.log(msg.distribution);
 		validation.then(() => {for (let i in msg.distribution){
 			multi.del(i+":servers");
 			for (let j in msg.distribution[i]){
@@ -292,7 +286,6 @@ module.exports = function (options) {
             resolve();
         });
 		let multi = clientRedis.multi();
-		console.log(msg.distribution);
 		validation.then(() => {for (let i in msg.distribution){
 
 			multi.del("viewer:"+i+":servers");
@@ -357,22 +350,58 @@ module.exports = function (options) {
 				if (viewers[1][v].indexOf(":servers") == -1){
 		 	    	multi.hget(viewers[1][v], 'id_uploader', (err,vid) => {
 						if (lists["uploader:".concat(vid)] == undefined) {
-							lists["uploader:".concat(vid)] = [];
-							lists["uploader:".concat(vid)] = lists["uploader:".concat(vid)].concat(viewers[1][v]);
+							lists["uploader:".concat(vid)] = {};
+							lists["uploader:".concat(vid)]["viewers"] = [];
+							lists["uploader:".concat(vid)]["viewers"] = lists["uploader:".concat(vid)]["viewers"].concat(viewers[1][v]);
 						}else
-							lists["uploader:".concat(vid)] = lists["uploader:".concat(vid)].concat(viewers[1][v]);
+							lists["uploader:".concat(vid)]["viewers"] = lists["uploader:".concat(vid)]["viewers"].concat(viewers[1][v]);
 					})
 				}
    			}
 		})
 		.then(() => {
 			multi.execAsync((err,res) => {
-				console.log(lists);
 				return new Promise( (resolve, reject) => {respond(null, { 'lists': lists,'code': 200 , 'status': "List of viewers done succesfully." }); resolve();}, null );
 			});
 		})
         .catch(err => {
             respond(`Error on listing viewers: ${err}`, { 'code': 500 , 'status': null });
+        });
+    });
+
+	/**
+     * video publishTime
+     * @function
+     * @param {JSON object} msg - uploader
+     * @param {function} respond - response after operation : respond(err, JSON object response);
+     */
+	this.add('role:publishTime,cmd:get', (msg, respond) => {
+        let validation = new Promise((resolve, reject) => {
+            resolve();
+        });
+		let publishTime = {};
+		let upsv=[];
+		let multi=clientRedis.multi();
+		validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:*','count','100000')) // ? to be modified if there are >= 10 ups
+	    .then((uploaders) => {
+			for (let i in uploaders[1]){
+				if (uploaders[1][i].indexOf(":servers") == -1 && uploaders[1][i].indexOf(":tags") == -1)
+					upsv = upsv.concat(uploaders[1][i]);
+			}
+			return(upsv);
+		})
+		.then((upsv) => { for (let i in upsv) { 
+			multi.hget(upsv[i], "publishTime", (err,pubTime) => {
+				publishTime[upsv[i]] = pubTime;
+			})
+		}	})
+		.then(() => {
+			multi.execAsync((err,res) => {
+				return new Promise( (resolve, reject) => {respond(null, { 'publishTime': publishTime,'code': 200 , 'status': "publishTime returned succesfully." }); resolve();}, null );
+			})
+		})
+        .catch(err => {
+            respond(`Error on returning publishTime: ${err}`, { 'code': 500 , 'status': null });
         });
     });
 
@@ -391,15 +420,14 @@ module.exports = function (options) {
 		validation.then(() => clientRedis.scanAsync('0','MATCH','uploader:*','count','100000')) // ? to be modified if there are >= 10 ups
 	    .then((uploaders) => {
 			for (let i in uploaders[1]){
-				console.log(">>>> "+uploaders[1][i].indexOf(":tags"));
 				if (uploaders[1][i].indexOf(":servers") == -1 && uploaders[1][i].indexOf(":tags") == -1)
 					upsv = upsv.concat(uploaders[1][i]);
 			}
 			return(upsv);
 		})
 
-		.then((upsv) => {console.log(upsv);
-				return new Promise( (resolve, reject) => {respond(null, { 'uploaders':[upsv],'code': 200 , 'status': "uploaders listed succesfully." }); resolve();}, null );
+		.then((upsv) => {
+			return new Promise( (resolve, reject) => {respond(null, { 'uploaders':[upsv],'code': 200 , 'status': "uploaders listed succesfully." }); resolve();}, null );
 			})
 
         .catch(err => {
@@ -421,17 +449,15 @@ module.exports = function (options) {
 		let bitrate={};
 		validation.then(() => {return clientRedis.hgetallAsync('distrib');})
 	    .then((result) => {
-			console.log(clientRedis.hgetallAsync);
-			console.log(">>>>>>>>>BIRAAAAATTEESSS>>>"+result);
 			for (let i=1; i<result.length; i=i+2){
 				bitrate[result[i-1]] = result[i];
 			}
 			return(bitrate);
 		})
 
-		.then((bitrate) => {console.log("bitrate: "+bitrate);
-				return new Promise( (resolve, reject) => {respond(null, { 'bitrate':bitrate,'code': 200 , 'status': "Bitrate object created." }); resolve();}, null );
-			})
+		.then((bitrate) => {
+			return new Promise( (resolve, reject) => {respond(null, { 'bitrate':bitrate,'code': 200 , 'status': "Bitrate object created." }); resolve();}, null );
+		})
 
         .catch(err => {
             respond(`Error on creating bitrate object : ${err}`, { 'code': 500 , 'status': null });
@@ -453,7 +479,6 @@ module.exports = function (options) {
 			if (err){
 				throw err;
 			}
-			console.log(res);
 			if (res == "yes")
 				clientRedis.set('modifViewer',"no");
 			return new Promise( (resolve, reject) => {respond(null, { 'modification':res,'code': 200 , 'status': "Bitrate object created." }); resolve();}, null );
