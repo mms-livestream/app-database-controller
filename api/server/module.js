@@ -18,7 +18,7 @@ module.exports = (options) => {
         //{ "id_uploader": int, "title": string , "tags": string array}
         //console.log(data);
 	
-	clientRedis.hsetAsync("distrib","http://"+data.ipAddress,data.bitrate);
+	clientRedis.hsetAsync("distrib",data.ipAddress,data.bitrate);
 
         res.sendStatus(200);
     });
