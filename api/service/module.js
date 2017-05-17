@@ -93,13 +93,17 @@ module.exports = function (options) {
             resolve();
         });
 
-        validation.then(() => clientRedis.hmsetAsync(`uploader:${msg.id_uploader}`, {
+        //Add uploader
+        let promAdd = validation.then(() => clientRedis.hmsetAsync(`uploader:${msg.id_uploader}`, {
             "title": msg.title }))  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
         .then(() => {return clientRedis.lpushAsync(`uploader:${msg.id_uploader}:tags`, msg.tags); } )   //add tags, array form
         .then(() => {return new Promise( () => respond(null, { 'code': 200 , 'status': "Uploader added succesfully." }), null );} )
         .catch(err => {
             respond(`Error on adding uploader: ${err}`, { 'code': 500 , 'status': null });
         });
+
+        //Update videos for session manager
+        //promAdd.then(() => )
      });
 
     /**
