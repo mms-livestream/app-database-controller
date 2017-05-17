@@ -95,7 +95,7 @@ module.exports = function (options) {
 
         //Add uploader
         let promAdd = validation.then(() => clientRedis.hmsetAsync(`uploader:${msg.id_uploader}`, {
-            "title": msg.title }))  //date format moment.js ISO : '2016-08-02T15:44:09-05:00'
+            "title": msg.title, "publishTime": new Date()}))  //date format
         .then(() => {return clientRedis.lpushAsync(`uploader:${msg.id_uploader}:tags`, msg.tags); } )   //add tags, array form
         .then(() => {return new Promise( () => respond(null, { 'code': 200 , 'status': "Uploader added succesfully." }), null );} )
         .catch(err => {
